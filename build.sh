@@ -1,12 +1,12 @@
 #!/bin/bash
-# Builds Skipper and assembles a macOS .app bundle.
+# Builds Container Manager and assembles a macOS .app bundle.
 # Usage: ./build.sh [debug|release]   (default: release)
 set -euo pipefail
 
 CONFIG="${1:-release}"
-APP_NAME="Skipper"                 # display name & .app bundle
+APP_NAME="Container Manager"       # display name & .app bundle
 TARGET="ContainerUI"               # SwiftPM product / binary name
-BUNDLE_ID="com.skipper.app"
+BUNDLE_ID="com.mckaymic.Container-Manager"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 APP="$ROOT/$APP_NAME.app"
 
@@ -32,8 +32,8 @@ for bundle in "$(dirname "$BIN_PATH")"/*.bundle; do
 done
 
 # App icon
-if [[ -f "$ROOT/Assets/Skipper.icns" ]]; then
-    cp "$ROOT/Assets/Skipper.icns" "$APP/Contents/Resources/Skipper.icns"
+if [[ -f "$ROOT/Assets/ContainerManager.icns" ]]; then
+    cp "$ROOT/Assets/ContainerManager.icns" "$APP/Contents/Resources/ContainerManager.icns"
 fi
 
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -48,7 +48,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleShortVersionString</key><string>1.0</string>
     <key>CFBundlePackageType</key>     <string>APPL</string>
     <key>CFBundleExecutable</key>      <string>$TARGET</string>
-    <key>CFBundleIconFile</key>        <string>Skipper</string>
+    <key>CFBundleIconFile</key>        <string>ContainerManager</string>
     <key>LSMinimumSystemVersion</key>  <string>14.0</string>
     <key>NSHighResolutionCapable</key> <true/>
     <key>NSPrincipalClass</key>        <string>NSApplication</string>

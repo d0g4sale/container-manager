@@ -1,0 +1,105 @@
+name: Container Manager
+# Regenerate the .xcodeproj after editing this file:  xcodegen generate
+
+options:
+  bundleIdPrefix: com.mckaymic
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+packages:
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm.git
+    from: "1.13.0"
+
+settings:
+  base:
+    # Signing — Developer ID for notarized, direct (non-App-Store) distribution.
+    DEVELOPMENT_TEAM: MKTMGKS2F9
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+    # Language / build
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    COMBINE_HIDPI_IMAGES: YES
+
+targets:
+  Container Manager:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      # The real app lives here. With PRODUCT_NAME "Container Manager" the
+      # module name resolves to `Container_Manager` (spaces → underscores),
+      # matching the test target's `@testable import Container_Manager`.
+      - path: Sources/ContainerUI
+      - path: Support/Assets.xcassets
+    dependencies:
+      - package: SwiftTerm
+        product: SwiftTerm
+    settings:
+      base:
+        PRODUCT_NAME: Container Manager
+        PRODUCT_BUNDLE_IDENTIFIER: com.mckaymic.Container-Manager
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_ENTITLEMENTS: Support/ContainerManager.entitlements
+    info:
+      path: Support/Info.plist
+      properties:
+        CFBundleName: Container Manager
+        CFBundleDisplayName: Container Manager
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSMinimumSystemVersion: "14.0"
+        NSHighResolutionCapable: true
+        NSPrincipalClass: NSApplication
+        LSApplicationCategoryType: public.app-category.developer-tools
+        CFBundleIconName: AppIcon
+        NSHumanReadableCopyright: "© 2026 Michael McKay"
+
+  Container ManagerTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Container ManagerTests
+    dependencies:
+      - target: Container Manager
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mckaymic.Container-ManagerTests
+        GENERATE_INFOPLIST_FILE: YES
+
+  Container ManagerUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Container ManagerUITests
+    dependencies:
+      - target: Container Manager
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mckaymic.Container-ManagerUITests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Container Manager:
+    build:
+      targets:
+        Container Manager: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - Container ManagerTests
+        - Container ManagerUITests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

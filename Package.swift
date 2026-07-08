@@ -16,6 +16,12 @@ let package = Package(
             path: "Sources/ContainerUI",
             resources: [
                 .process("Resources")
+            ],
+            swiftSettings: [
+                // Marks the SwiftPM build so resource loading can use
+                // `Bundle.module` (SwiftPM-only) while the Xcode app target
+                // falls back to `Bundle.main`. See DashboardView `appLogo`.
+                .define("SWIFTPM_BUILD")
             ]
         )
     ]

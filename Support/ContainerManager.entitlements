@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+      Developer ID + notarization requires the Hardened Runtime (set via the
+      ENABLE_HARDENED_RUNTIME build setting). The app is intentionally NOT
+      sandboxed: it launches the `container` CLI as a subprocess and reads
+      user-picked folders for volume mounts. No extra Hardened Runtime
+      exceptions are needed for that.
+    -->
+</dict>
+</plist>

@@ -239,6 +239,99 @@ struct CTVolume: Decodable, Identifiable, Hashable {
     var createdDate: Date? { ISO8601DateFormatter.engine.date(from: creationDate ?? "") }
 }
 
+// MARK: - Machine
+
+/// A container machine (a lightweight Linux VM) as reported by
+/// `container machine list --format json` / `container machine inspect`.
+///
+/// The two commands share a base shape; `inspect` adds `image`, `homeMount`,
+/// `platform` and `userSetup`, so those are optional and only populated on the
+/// detail screen. Decoding is tolerant so both shapes flow through one type.
+struct CTMachine: Codable, Identifiable, Hashable {
+    let id: String
+    let status: String
+    let cpus: Int?
+    let memory: Int64?
+    let diskSize: Int64?
+    let createdDate: String?
+    let isDefault: Bool
+    let ip: String?
+
+    // Inspect-only extras.
+    let image: ImageRef?
+    let homeMount: String?
+    let platform: Platform?
+    let userSetup: UserSetup?
+
+    struct ImageRef: Codable, Hashable {
+        let reference: String
+    }
+
+    struct Platform: Codable, Hashable {
+        let architecture: String?
+        let os: String?
+    }
+
+    struct UserSetup: Codable, Hashable {
+        let username: String?
+        let uid: Int?
+        let gid: Int?
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, status, cpus, memory, diskSize, createdDate, ip, ipAddress
+        case isDefault = "default"
+        case image, homeMount, platform, userSetup
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        status = (try? c.decode(String.self, forKey: .status)) ?? "unknown"
+        cpus = try? c.decode(Int.self, forKey: .cpus)
+        memory = try? c.decode(Int64.self, forKey: .memory)
+        diskSize = try? c.decode(Int64.self, forKey: .diskSize)
+        createdDate = try? c.decode(String.self, forKey: .createdDate)
+        isDefault = (try? c.decode(Bool.self, forKey: .isDefault)) ?? false
+        ip = (try? c.decode(String.self, forKey: .ip))
+            ?? (try? c.decode(String.self, forKey: .ipAddress))
+        image = try? c.decode(ImageRef.self, forKey: .image)
+        homeMount = try? c.decode(String.self, forKey: .homeMount)
+        platform = try? c.decode(Platform.self, forKey: .platform)
+        userSetup = try? c.decode(UserSetup.self, forKey: .userSetup)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(status, forKey: .status)
+        try c.encodeIfPresent(cpus, forKey: .cpus)
+        try c.encodeIfPresent(memory, forKey: .memory)
+        try c.encodeIfPresent(diskSize, forKey: .diskSize)
+        try c.encodeIfPresent(createdDate, forKey: .createdDate)
+        try c.encode(isDefault, forKey: .isDefault)
+        try c.encodeIfPresent(ip, forKey: .ip)
+    }
+
+    // MARK: Convenience
+
+    var isRunning: Bool { status.lowercased() == "running" }
+
+    var displayImage: String? {
+        image.map { CTContainer.shortImageName($0.reference) }
+    }
+
+    var createdAt: Date? { ISO8601DateFormatter.engine.date(from: createdDate ?? "") }
+
+    /// Memory rendered the way `machine set` accepts it (e.g. `8G`, `512M`).
+    var memorySetting: String? {
+        guard let memory, memory > 0 else { return nil }
+        let gib: Int64 = 1_073_741_824
+        if memory % gib == 0 { return "\(memory / gib)G" }
+        return "\(memory / 1_048_576)M"
+    }
+}
+
 // MARK: - System status
 
 /// Output of `container system status --format json`.

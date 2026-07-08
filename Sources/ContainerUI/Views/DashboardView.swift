@@ -196,7 +196,7 @@ struct DashboardView: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Skipper")
+                Text("Container Manager")
                     .font(.system(size: 34, weight: .bold))
                     .foregroundStyle(.white)
                 Text("Apple Containers, images and volumes — all in one place.")
@@ -297,6 +297,13 @@ struct DashboardView: View {
                         caption: model.volumes.isEmpty ? "none" : "persistent storage",
                         symbol: "externaldrive.fill", tint: .teal,
                         action: { model.selection = .volumes })
+                KPITile(title: "Machines",
+                        value: "\(model.machines.count)",
+                        caption: model.machines.isEmpty
+                            ? "none"
+                            : "\(model.machines.filter(\.isRunning).count) running",
+                        symbol: "desktopcomputer", tint: .indigo,
+                        action: { model.selection = .machines })
             }
         }
     }
@@ -382,9 +389,17 @@ struct DashboardView: View {
 
 extension NSImage {
     /// The app logo (squircle with transparent corners), loaded once from the
-    /// SwiftPM resource bundle for use in-app (e.g. the dashboard hero banner).
+    /// app's resource bundle for use in-app (e.g. the dashboard hero banner).
+    ///
+    /// The Xcode app target bundles resources into `Bundle.main`; the SwiftPM
+    /// build exposes them via the generated `Bundle.module` accessor.
     static let appLogo: NSImage? = {
-        guard let url = Bundle.module.url(forResource: "SkipperLogo", withExtension: "png") else { return nil }
+        #if SWIFTPM_BUILD
+        let bundle = Bundle.module
+        #else
+        let bundle = Bundle.main
+        #endif
+        guard let url = bundle.url(forResource: "ContainerManagerLogo", withExtension: "png") else { return nil }
         return NSImage(contentsOf: url)
     }()
 }

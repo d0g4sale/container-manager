@@ -206,6 +206,44 @@ struct ContainerEngine {
         return prettyJSON(data)
     }
 
+    // MARK: - Machines
+
+    func listMachines() async -> [CTMachine] {
+        (try? await runJSON(["machine", "list", "--format", "json"], as: [CTMachine].self)) ?? []
+    }
+
+    /// Full details for one machine. `machine inspect` prints a JSON array
+    /// (there's no `--format` flag) with fields the list command omits.
+    func inspectMachine(_ id: String) async throws -> CTMachine? {
+        try await runJSON(["machine", "inspect", id], as: [CTMachine].self).first
+    }
+
+    func inspectMachineRaw(_ id: String) async throws -> String {
+        let data = try await run(["machine", "inspect", id])
+        return prettyJSON(data)
+    }
+
+    /// Boot a stopped machine. There is no `machine start`; `machine run`
+    /// boots the VM if necessary, so running a trivial command starts it and
+    /// leaves it running (until `machine stop`). `machine run` performs TTY
+    /// ioctls on stdin even for non-interactive commands and fails with
+    /// "Operation not supported by device" on a plain pipe, so it must run
+    /// attached to a pseudo-terminal.
+    func startMachine(_ id: String) async throws {
+        try await runWithPTY(["machine", "run", "-n", id, "--", "uname"])
+    }
+
+    func stopMachine(_ id: String) async throws { try await run(["machine", "stop", id]) }
+    func deleteMachine(_ id: String) async throws { try await run(["machine", "delete", id]) }
+    func setDefaultMachine(_ id: String) async throws { try await run(["machine", "set-default", id]) }
+
+    /// Apply `key=value` settings (cpus, memory, home-mount). The CLI stores
+    /// them immediately; they take effect the next time the machine boots.
+    func configureMachine(_ id: String, settings: [String]) async throws {
+        guard !settings.isEmpty else { return }
+        try await run(["machine", "set", "-n", id] + settings)
+    }
+
     // MARK: - Volumes
 
     func listVolumes() async -> [CTVolume] {
@@ -229,6 +267,63 @@ struct ContainerEngine {
 
     /// Remove volumes with no container references.
     func pruneVolumes() async throws { try await run(["volume", "prune"]) }
+
+    /// Runs `container <args>` with stdio attached to a pseudo-terminal, for
+    /// subcommands that refuse plain pipes (`machine run`). Output is drained
+    /// from the PTY so the child never blocks on a full buffer.
+    @discardableResult
+    private func runWithPTY(_ args: [String]) async throws -> Data {
+        guard let binary = Self.binaryPath else { throw EngineError.binaryNotFound }
+        return try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data, Error>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                var primary: Int32 = 0
+                var replica: Int32 = 0
+                guard openpty(&primary, &replica, nil, nil, nil) == 0 else {
+                    cont.resume(throwing: EngineError.commandFailed(
+                        command: args.joined(separator: " "), code: -1,
+                        message: "Could not allocate a pseudo-terminal."))
+                    return
+                }
+
+                let proc = Process()
+                proc.executableURL = URL(fileURLWithPath: binary)
+                proc.arguments = args
+                let replicaHandle = FileHandle(fileDescriptor: replica, closeOnDealloc: false)
+                proc.standardInput = replicaHandle
+                proc.standardOutput = replicaHandle
+                proc.standardError = replicaHandle
+
+                do {
+                    try proc.run()
+                } catch {
+                    close(primary); close(replica)
+                    cont.resume(throwing: error)
+                    return
+                }
+                // The child holds its own copy of the replica side.
+                close(replica)
+
+                // Drain until EOF (reading the primary after the child exits
+                // raises EIO, which surfaces here as nil/empty and ends the loop).
+                var output = Data()
+                let primaryHandle = FileHandle(fileDescriptor: primary, closeOnDealloc: true)
+                while let chunk = try? primaryHandle.read(upToCount: 4096), !chunk.isEmpty {
+                    output.append(chunk)
+                }
+                proc.waitUntilExit()
+
+                if proc.terminationStatus == 0 {
+                    cont.resume(returning: output)
+                } else {
+                    let message = String(data: output, encoding: .utf8) ?? ""
+                    cont.resume(throwing: EngineError.commandFailed(
+                        command: args.joined(separator: " "),
+                        code: proc.terminationStatus,
+                        message: message))
+                }
+            }
+        }
+    }
 
     // MARK: - Streaming (pull / build / follow logs)
 

@@ -42,6 +42,7 @@ struct RootView: View {
         switch item {
         case .dashboard: return 0
         case .containers: return model.containers.count
+        case .machines: return model.machines.count
         case .images: return model.images.count
         case .volumes: return model.volumes.count
         case .build: return 0
@@ -64,6 +65,7 @@ struct RootView: View {
             switch model.selection ?? .dashboard {
             case .dashboard: DashboardView()
             case .containers: ContainersView()
+            case .machines: MachinesView()
             case .images: ImagesView()
             case .volumes: VolumesView()
             case .build: BuildView()

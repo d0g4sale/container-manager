@@ -3,7 +3,7 @@ import Combine
 
 /// Sidebar destinations.
 enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
-    case dashboard, containers, images, volumes, build
+    case dashboard, containers, machines, images, volumes, build
 
     var id: String { rawValue }
 
@@ -11,6 +11,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .dashboard: return "Dashboard"
         case .containers: return "Containers"
+        case .machines: return "Machines"
         case .images: return "Images"
         case .volumes: return "Volumes"
         case .build: return "Build"
@@ -21,6 +22,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .dashboard: return "square.grid.2x2.fill"
         case .containers: return "shippingbox.fill"
+        case .machines: return "desktopcomputer"
         case .images: return "square.stack.3d.up.fill"
         case .volumes: return "externaldrive.fill"
         case .build: return "hammer.fill"
@@ -50,8 +52,13 @@ final class AppModel: ObservableObject {
 
     // Data
     @Published var containers: [CTContainer] = []
+    @Published var machines: [CTMachine] = []
     @Published var images: [CTImage] = []
     @Published var volumes: [CTVolume] = []
+
+    /// Machine IDs with an in-flight start/stop, so the UI can show a spinner
+    /// during the multi-second VM boot instead of a stale status pill.
+    @Published var busyMachines: Set<String> = []
 
     // Engine / system info
     @Published var systemStatus: CTSystemStatus?
@@ -116,7 +123,7 @@ final class AppModel: ObservableObject {
         do {
             try await engine.stopSystem()
             engineRunning = false
-            containers = []; images = []; volumes = []
+            containers = []; machines = []; images = []; volumes = []
             systemStatus = nil; diskUsage = nil; networks = []
             showToast(.info, "Engine stopped")
         } catch {
@@ -132,6 +139,7 @@ final class AppModel: ObservableObject {
         defer { if showSpinner { isRefreshing = false } }
 
         async let c = engine.listContainers()
+        async let m = engine.listMachines()
         async let i = engine.listImages()
         async let v = engine.listVolumes()
         async let st = engine.systemStatus()
@@ -141,6 +149,7 @@ final class AppModel: ObservableObject {
         if let newContainers = try? await c {
             containers = newContainers.sorted { sortKey($0) < sortKey($1) }
         }
+        machines = await m.sorted { sortKey($0) < sortKey($1) }
         if let newImages = try? await i {
             images = newImages.sorted { $0.displayName < $1.displayName }
         }
@@ -153,6 +162,11 @@ final class AppModel: ObservableObject {
     private func sortKey(_ c: CTContainer) -> String {
         // Running first, then by name.
         (c.isRunning ? "0" : "1") + c.id
+    }
+
+    private func sortKey(_ m: CTMachine) -> String {
+        // Default first, then running, then by name.
+        (m.isDefault ? "0" : "1") + (m.isRunning ? "0" : "1") + m.id
     }
 
     /// Containers that mount `volume`, paired with the specific mount so the UI
@@ -222,6 +236,59 @@ final class AppModel: ObservableObject {
     /// Reference usable by `image delete` / `run` — prefer repo:tag.
     func imageRef(_ image: CTImage) -> String {
         image.name.isEmpty ? image.id : image.name
+    }
+
+    // MARK: - Machine actions
+
+    /// Like `perform`, but marks the machine busy for the duration so rows can
+    /// show a spinner — VM boots take several seconds.
+    private func performMachine(_ id: String, success: String? = nil,
+                                _ work: @escaping () async throws -> Void) {
+        busyMachines.insert(id)
+        Task {
+            defer { busyMachines.remove(id) }
+            do {
+                try await work()
+                await refreshAll(showSpinner: false)
+                if let success { showToast(.success, success) }
+            } catch {
+                present(error)
+            }
+        }
+    }
+
+    func startMachine(_ m: CTMachine) {
+        performMachine(m.id, success: "Machine \(m.id) is up") {
+            try await self.engine.startMachine(m.id)
+        }
+    }
+
+    func stopMachine(_ m: CTMachine) {
+        performMachine(m.id, success: "Machine \(m.id) stopped") {
+            try await self.engine.stopMachine(m.id)
+        }
+    }
+
+    func restartMachine(_ m: CTMachine) {
+        performMachine(m.id, success: "Machine \(m.id) restarted") {
+            try? await self.engine.stopMachine(m.id)
+            try await self.engine.startMachine(m.id)
+        }
+    }
+
+    /// Deleting a running machine stops it first — `machine delete` refuses
+    /// to remove a booted VM.
+    func deleteMachine(_ m: CTMachine) {
+        performMachine(m.id, success: "Machine \(m.id) deleted") {
+            if m.isRunning { try? await self.engine.stopMachine(m.id) }
+            try await self.engine.deleteMachine(m.id)
+        }
+    }
+
+    func setDefaultMachine(_ m: CTMachine) {
+        performMachine(m.id, success: "\(m.id) is now the default machine") {
+            try await self.engine.setDefaultMachine(m.id)
+        }
     }
 
     // MARK: - Errors & toasts

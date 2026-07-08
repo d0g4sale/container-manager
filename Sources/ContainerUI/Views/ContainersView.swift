@@ -5,6 +5,8 @@ struct ContainersView: View {
     @StateObject private var fleet = FleetStatsMonitor()
     @State private var search = ""
     @State private var showStopped = true
+    /// Explicit stack path so deleted containers can be popped out of it.
+    @State private var path: [CTContainer] = []
 
     private var filtered: [CTContainer] {
         model.containers.filter { c in
@@ -18,7 +20,7 @@ struct ContainersView: View {
     private var running: Int { model.containers.filter(\.isRunning).count }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             VStack(spacing: 0) {
                 if !model.containers.isEmpty { summaryBar }
                 Group {
@@ -42,6 +44,13 @@ struct ContainersView: View {
             }
             .toolbar { toolbar }
             .searchable(text: $search, placement: .toolbar, prompt: "Filter containers")
+        }
+        // Pop deleted containers off the stack so the user isn't stranded on
+        // a "no longer exists" page.
+        .onChange(of: model.containers) { _, containers in
+            let ids = Set(containers.map(\.id))
+            let pruned = path.filter { ids.contains($0.id) }
+            if pruned.count != path.count { path = pruned }
         }
         .onAppear { fleet.start { model.containers.filter(\.isRunning).map(\.id) } }
         .onDisappear { fleet.stop() }

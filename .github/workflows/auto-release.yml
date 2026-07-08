@@ -1,0 +1,76 @@
+name: Auto Release
+
+# Manual release with automatic semantic versioning. Pick a bump (major/minor/
+# patch); the workflow reads the latest v* tag, increments it, pushes the new
+# tag, then runs the signed build + notarize + GitHub Release for it.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Which semver part to increment"
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write     # push the tag and create the release
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0     # need full history + tags to find the latest
+
+      - name: Compute next version
+        id: compute
+        run: |
+          set -euo pipefail
+          # Highest existing v* tag by semver order (empty => start at v0.0.0).
+          latest="$(git tag -l 'v*' --sort=-v:refname | head -n1)"
+          latest="${latest:-v0.0.0}"
+          echo "Latest tag: $latest"
+
+          ver="${latest#v}"
+          IFS='.' read -r major minor patch <<< "$ver"
+          major="${major:-0}"; minor="${minor:-0}"; patch="${patch:-0}"
+
+          case "${{ inputs.bump }}" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+            *) echo "Unknown bump: ${{ inputs.bump }}" >&2; exit 1 ;;
+          esac
+
+          next="v${major}.${minor}.${patch}"
+          echo "Next version: $next"
+
+          if git rev-parse -q --verify "refs/tags/$next" >/dev/null; then
+            echo "Tag $next already exists" >&2
+            exit 1
+          fi
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        run: |
+          set -euo pipefail
+          next="${{ steps.compute.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$next" -m "Release $next"
+          git push origin "$next"
+
+  # Build, sign, notarize, and attach the DMG to the release for the new tag.
+  release:
+    needs: version
+    uses: ./.github/workflows/release-build.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+    secrets: inherit
