@@ -45,6 +45,7 @@ struct RootView: View {
         case .machines: return model.machines.count
         case .images: return model.images.count
         case .volumes: return model.volumes.count
+        case .networks: return model.networks.count
         case .build: return 0
         }
     }
@@ -68,6 +69,7 @@ struct RootView: View {
             case .machines: MachinesView()
             case .images: ImagesView()
             case .volumes: VolumesView()
+            case .networks: NetworksView()
             case .build: BuildView()
             }
         }

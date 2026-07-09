@@ -19,6 +19,7 @@ struct RunSheet: View {
     @State private var showAdvanced = false
     @State private var cpus = ""
     @State private var memory = ""
+    @State private var network = ""
 
     @State private var running = false
     @State private var errorText: String?
@@ -66,10 +67,17 @@ struct RunSheet: View {
 
     private var generalSection: some View {
         Section {
-            TextField("Container name", text: $name, prompt: Text("Optional — auto-generated"))
-            TextField("Command", text: $commandOverride,
-                      prompt: Text("Optional — overrides image default"))
-                .font(.system(.body, design: .monospaced))
+            LabeledField("Container name") {
+                TextField("Container name", text: $name,
+                          prompt: Text("Optional — auto-generated"))
+                    .sheetField()
+            }
+            LabeledField("Command") {
+                TextField("Command", text: $commandOverride,
+                          prompt: Text("Optional — overrides image default"))
+                    .sheetField()
+                    .font(.system(.body, design: .monospaced))
+            }
             Toggle("Remove automatically when it stops", isOn: $removeOnExit)
         } header: {
             Text("General")
@@ -80,11 +88,14 @@ struct RunSheet: View {
         Section {
             ForEach($ports) { $p in
                 HStack(spacing: 8) {
-                    TextField("Host", text: $p.host).frame(width: 90)
+                    TextField("Host port", text: $p.host.digitsOnly, prompt: Text("Host"))
+                        .sheetField()
+                        .frame(maxWidth: .infinity)
                     Image(systemName: "arrow.right").foregroundStyle(.secondary)
-                    TextField("Container", text: $p.container).frame(width: 90)
-                    Spacer()
-                    Button { ports.removeAll { $0.id == p.id } } label: {
+                    TextField("Container port", text: $p.container.digitsOnly, prompt: Text("Container"))
+                        .sheetField()
+                        .frame(maxWidth: .infinity)
+                    Button { $ports.removeDeferred(p.id) } label: {
                         Image(systemName: "minus.circle.fill").foregroundStyle(.secondary)
                     }.buttonStyle(.borderless)
                 }
@@ -103,10 +114,15 @@ struct RunSheet: View {
         Section {
             ForEach($envs) { $e in
                 HStack(spacing: 8) {
-                    TextField("KEY", text: $e.key).font(.system(.body, design: .monospaced))
+                    TextField("Key", text: $e.key, prompt: Text("KEY"))
+                        .sheetField()
+                        .font(.system(.body, design: .monospaced))
+                        .frame(maxWidth: .infinity)
                     Text("=").foregroundStyle(.secondary)
-                    TextField("value", text: $e.value)
-                    Button { envs.removeAll { $0.id == e.id } } label: {
+                    TextField("Value", text: $e.value, prompt: Text("value"))
+                        .sheetField()
+                        .frame(maxWidth: .infinity)
+                    Button { $envs.removeDeferred(e.id) } label: {
                         Image(systemName: "minus.circle.fill").foregroundStyle(.secondary)
                     }.buttonStyle(.borderless)
                 }
@@ -121,13 +137,17 @@ struct RunSheet: View {
         Section {
             ForEach($mounts) { $m in
                 HStack(spacing: 8) {
-                    TextField("Host path", text: $m.host)
+                    TextField("Host path", text: $m.host, prompt: Text("Host path"))
+                        .sheetField()
+                        .frame(maxWidth: .infinity)
                     Button { chooseFolder { $m.host.wrappedValue = $0 } } label: {
                         Image(systemName: "folder")
                     }.buttonStyle(.borderless)
                     Image(systemName: "arrow.right").foregroundStyle(.secondary)
-                    TextField("Container path", text: $m.container)
-                    Button { mounts.removeAll { $0.id == m.id } } label: {
+                    TextField("Container path", text: $m.container, prompt: Text("Container path"))
+                        .sheetField()
+                        .frame(maxWidth: .infinity)
+                    Button { $mounts.removeDeferred(m.id) } label: {
                         Image(systemName: "minus.circle.fill").foregroundStyle(.secondary)
                     }.buttonStyle(.borderless)
                 }
@@ -142,8 +162,20 @@ struct RunSheet: View {
 
     private var advancedSection: some View {
         Section(isExpanded: $showAdvanced) {
-            TextField("CPUs", text: $cpus, prompt: Text("default"))
-            TextField("Memory", text: $memory, prompt: Text("e.g. 512M, 2G"))
+            LabeledField("CPUs") {
+                TextField("CPUs", text: $cpus.digitsOnly, prompt: Text("default"))
+                    .sheetField()
+            }
+            LabeledField("Memory") {
+                TextField("Memory", text: $memory, prompt: Text("e.g. 512M, 2G"))
+                    .sheetField()
+            }
+            Picker("Network", selection: $network) {
+                Text("Default").tag("")
+                ForEach(model.networks) { net in
+                    Text(net.name).tag(net.name)
+                }
+            }
         } header: {
             Text("Advanced")
         }
@@ -186,6 +218,8 @@ struct RunSheet: View {
         if !c.isEmpty { args += ["--cpus", c] }
         let mem = memory.trimmingCharacters(in: .whitespaces)
         if !mem.isEmpty { args += ["--memory", mem] }
+        let net = network.trimmingCharacters(in: .whitespaces)
+        if !net.isEmpty { args += ["--network", net] }
 
         args.append(model.imageRef(image))
 

@@ -387,17 +387,31 @@ struct CTNetwork: Codable, Identifiable, Hashable {
     struct Configuration: Codable, Hashable {
         let name: String
         let mode: String?
+        let plugin: String?
+        let labels: [String: String]?
+        let creationDate: String?
     }
 
     struct Status: Codable, Hashable {
         let ipv4Gateway: String?
         let ipv4Subnet: String?
+        let ipv6Subnet: String?
     }
 
     var name: String { configuration.name }
     var mode: String? { configuration.mode }
+    var plugin: String? { configuration.plugin }
     var subnet: String? { status?.ipv4Subnet }
+    var subnetV6: String? { status?.ipv6Subnet }
     var gateway: String? { status?.ipv4Gateway }
+    var labels: [String: String]? { configuration.labels }
+    var createdDate: Date? { ISO8601DateFormatter.engine.date(from: configuration.creationDate ?? "") }
+
+    /// Networks created by the engine itself (e.g. the `default` NAT network)
+    /// carry a `builtin` role label and can't be deleted.
+    var isBuiltin: Bool {
+        configuration.labels?["com.apple.container.resource.role"] == "builtin"
+    }
 }
 
 // MARK: - Formatting helpers

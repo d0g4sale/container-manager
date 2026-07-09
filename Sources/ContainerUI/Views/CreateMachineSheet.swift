@@ -64,10 +64,16 @@ struct CreateMachineSheet: View {
     private var form: some View {
         Form {
             Section {
-                TextField("Image", text: $image, prompt: Text("e.g. ubuntu:24.04"))
-                    .font(.system(.body, design: .monospaced))
-                TextField("Name", text: $name, prompt: Text("Optional — e.g. dev-box"))
-                    .font(.system(.body, design: .monospaced))
+                LabeledField("Image") {
+                    TextField("Image", text: $image, prompt: Text("e.g. ubuntu:24.04"))
+                        .sheetField()
+                        .font(.system(.body, design: .monospaced))
+                }
+                LabeledField("Name") {
+                    TextField("Name", text: $name, prompt: Text("Optional — e.g. dev-box"))
+                        .sheetField()
+                        .font(.system(.body, design: .monospaced))
+                }
                 suggestionChips
             } header: {
                 Text("Image")
@@ -76,8 +82,14 @@ struct CreateMachineSheet: View {
             }
 
             Section {
-                TextField("CPUs", text: $cpus, prompt: Text("Optional — e.g. 4"))
-                TextField("Memory", text: $memory, prompt: Text("Optional — e.g. 8G (default: half of system memory)"))
+                LabeledField("CPUs") {
+                    TextField("CPUs", text: $cpus.digitsOnly, prompt: Text("Optional — e.g. 4"))
+                        .sheetField()
+                }
+                LabeledField("Memory") {
+                    TextField("Memory", text: $memory, prompt: Text("Optional — e.g. 8G (default: half of system memory)"))
+                        .sheetField()
+                }
                 Picker("Home folder", selection: $homeMount) {
                     Text("Read & write").tag("rw")
                     Text("Read only").tag("ro")

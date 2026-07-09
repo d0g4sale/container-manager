@@ -342,7 +342,12 @@ struct DashboardView: View {
     private var networksSection: some View {
         if !model.networks.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Networks").font(.headline)
+                HStack {
+                    Text("Networks").font(.headline)
+                    Spacer()
+                    Button("Manage") { model.selection = .networks }
+                        .buttonStyle(.link)
+                }
                 Card {
                     ForEach(Array(model.networks.enumerated()), id: \.element.id) { index, net in
                         if index > 0 { Divider() }

@@ -3,7 +3,7 @@ import Combine
 
 /// Sidebar destinations.
 enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
-    case dashboard, containers, machines, images, volumes, build
+    case dashboard, containers, machines, images, volumes, networks, build
 
     var id: String { rawValue }
 
@@ -14,6 +14,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .machines: return "Machines"
         case .images: return "Images"
         case .volumes: return "Volumes"
+        case .networks: return "Networks"
         case .build: return "Build"
         }
     }
@@ -25,6 +26,7 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
         case .machines: return "desktopcomputer"
         case .images: return "square.stack.3d.up.fill"
         case .volumes: return "externaldrive.fill"
+        case .networks: return "network"
         case .build: return "hammer.fill"
         }
     }
@@ -179,6 +181,19 @@ final class AppModel: ObservableObject {
         .sorted { ($0.container.isRunning ? 0 : 1, $0.container.id) < ($1.container.isRunning ? 0 : 1, $1.container.id) }
     }
 
+    /// Containers attached to `network`, paired with their address on it so the
+    /// UI can show who's connected. Running first.
+    func usage(of network: CTNetwork) -> [(container: CTContainer, address: String?)] {
+        containers.compactMap { c -> (container: CTContainer, address: String?)? in
+            let attachedByConfig = c.configuration.networks?.contains { $0.network == network.name } ?? false
+            let statusNet = c.status.networks?.first { $0.network == network.name }
+            guard attachedByConfig || statusNet != nil else { return nil }
+            let address = statusNet?.ipv4Address?.components(separatedBy: "/").first
+            return (c, address)
+        }
+        .sorted { ($0.container.isRunning ? 0 : 1, $0.container.id) < ($1.container.isRunning ? 0 : 1, $1.container.id) }
+    }
+
     // MARK: - Container actions
 
     func perform(_ label: String, success: String? = nil,
@@ -231,6 +246,16 @@ final class AppModel: ObservableObject {
     }
     func deleteVolume(_ v: CTVolume) {
         perform("delete volume") { try await self.engine.deleteVolume(v.name) }
+    }
+    func deleteNetwork(_ n: CTNetwork) {
+        perform("delete network", success: "Deleted network \(n.name)") {
+            try await self.engine.deleteNetwork(n.name)
+        }
+    }
+    func pruneNetworks() {
+        perform("prune networks", success: "Removed unused networks") {
+            try await self.engine.pruneNetworks()
+        }
     }
 
     /// Reference usable by `image delete` / `run` — prefer repo:tag.

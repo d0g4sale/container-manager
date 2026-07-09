@@ -152,10 +152,31 @@ struct ContainerEngine {
         try await runJSON(["system", "df", "--format", "json"], as: CTDiskUsage.self)
     }
 
+    // MARK: - Networks
+
     /// Configured container networks.
     func listNetworks() async -> [CTNetwork] {
         (try? await runJSON(["network", "list", "--format", "json"], as: [CTNetwork].self)) ?? []
     }
+
+    func deleteNetwork(_ name: String) async throws { try await run(["network", "delete", name]) }
+
+    /// Create a new network. `subnet`/`subnetV6` set the IPv4/IPv6 ranges;
+    /// `internal` restricts it to host-only; `labels` pass through as `--label`.
+    func createNetwork(name: String, subnet: String? = nil, subnetV6: String? = nil,
+                       internalOnly: Bool = false,
+                       labels: [(String, String)] = []) async throws {
+        var args = ["network", "create"]
+        if internalOnly { args.append("--internal") }
+        for (k, v) in labels where !k.isEmpty { args += ["--label", "\(k)=\(v)"] }
+        if let subnet, !subnet.isEmpty { args += ["--subnet", subnet] }
+        if let subnetV6, !subnetV6.isEmpty { args += ["--subnet-v6", subnetV6] }
+        args.append(name)
+        try await run(args)
+    }
+
+    /// Remove networks with no container connections.
+    func pruneNetworks() async throws { try await run(["network", "prune"]) }
 
     // MARK: - Containers
 

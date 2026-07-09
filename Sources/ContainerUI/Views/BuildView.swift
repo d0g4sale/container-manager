@@ -32,6 +32,7 @@ struct BuildView: View {
                     HStack {
                         TextField("Build context folder", text: $contextPath,
                                   prompt: Text("Choose a folder containing your Dockerfile"))
+                            .sheetField()
                         Button("Choose…") { chooseFolder() }
                     }
                     if !contextPath.isEmpty {
@@ -50,11 +51,17 @@ struct BuildView: View {
                 }
 
                 Section {
-                    TextField("Image tag", text: $tag, prompt: Text("e.g. myapp:latest"))
-                        .font(.system(.body, design: .monospaced))
-                    TextField("Dockerfile path", text: $dockerfile,
-                              prompt: Text("Optional — defaults to ./Dockerfile"))
-                        .font(.system(.body, design: .monospaced))
+                    LabeledField("Image tag") {
+                        TextField("Image tag", text: $tag, prompt: Text("e.g. myapp:latest"))
+                            .sheetField()
+                            .font(.system(.body, design: .monospaced))
+                    }
+                    LabeledField("Dockerfile path") {
+                        TextField("Dockerfile path", text: $dockerfile,
+                                  prompt: Text("Optional — defaults to ./Dockerfile"))
+                            .sheetField()
+                            .font(.system(.body, design: .monospaced))
+                    }
                     Toggle("Build without cache", isOn: $noCache)
                 } header: {
                     Text("Output")

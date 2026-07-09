@@ -368,6 +368,59 @@ struct FlexWrap<Data: RandomAccessCollection, Content: View>: View where Data.El
     }
 }
 
+// MARK: - Sheet form field helpers
+
+extension View {
+    /// The standard bordered look for an editable field inside a sheet form:
+    /// a visible rounded border with its (accessibility-only) label hidden so
+    /// the field itself fills the row instead of being pushed aside by a label.
+    func sheetField() -> some View {
+        self.labelsHidden().textFieldStyle(.roundedBorder)
+    }
+}
+
+/// A leading label paired with a bordered field that fills the remaining width,
+/// so single fields read as clearly as the multi-field rows (ports, volumes).
+struct LabeledField<Content: View>: View {
+    let label: String
+    let content: Content
+
+    init(_ label: String, @ViewBuilder content: () -> Content) {
+        self.label = label
+        self.content = content()
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(label).frame(width: 130, alignment: .leading)
+            content
+        }
+    }
+}
+
+extension Binding where Value == String {
+    /// A view of this binding that only ever stores digits — the setter strips
+    /// any non-numeric characters as they are typed or pasted.
+    var digitsOnly: Binding<String> {
+        Binding(get: { wrappedValue }, set: { wrappedValue = $0.filter(\.isNumber) })
+    }
+}
+
+extension Binding where Value: RangeReplaceableCollection, Value.Element: Identifiable {
+    /// Removes the element with `id`, deferred to the next runloop tick.
+    ///
+    /// `ForEach($array)` binds each row's `TextField` by array position. Tapping
+    /// a remove button moves focus off the field, which makes AppKit
+    /// *synchronously* commit the edit through that positional binding. Mutating
+    /// the array in the same turn lands that write-back on a now-stale index and
+    /// traps with "Index out of range"; deferring lets the commit settle first.
+    func removeDeferred(_ id: Value.Element.ID) {
+        DispatchQueue.main.async {
+            wrappedValue.removeAll { $0.id == id }
+        }
+    }
+}
+
 // MARK: - Toolbar icon button helper
 
 struct CircleIconButton: View {

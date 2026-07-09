@@ -52,9 +52,15 @@ struct CreateVolumeSheet: View {
 
     private var generalSection: some View {
         Section {
-            TextField("Name", text: $name, prompt: Text("e.g. pgdata"))
-                .font(.system(.body, design: .monospaced))
-            TextField("Size", text: $size, prompt: Text("Optional — e.g. 512M, 10G"))
+            LabeledField("Name") {
+                TextField("Name", text: $name, prompt: Text("e.g. pgdata"))
+                    .sheetField()
+                    .font(.system(.body, design: .monospaced))
+            }
+            LabeledField("Size") {
+                TextField("Size", text: $size, prompt: Text("Optional — e.g. 512M, 10G"))
+                    .sheetField()
+            }
         } header: {
             Text("General")
         } footer: {
@@ -66,10 +72,15 @@ struct CreateVolumeSheet: View {
         Section {
             ForEach($labels) { $l in
                 HStack(spacing: 8) {
-                    TextField("key", text: $l.key).font(.system(.body, design: .monospaced))
+                    TextField("Key", text: $l.key, prompt: Text("key"))
+                        .sheetField()
+                        .font(.system(.body, design: .monospaced))
+                        .frame(maxWidth: .infinity)
                     Text("=").foregroundStyle(.secondary)
-                    TextField("value", text: $l.value)
-                    Button { labels.removeAll { $0.id == l.id } } label: {
+                    TextField("Value", text: $l.value, prompt: Text("value"))
+                        .sheetField()
+                        .frame(maxWidth: .infinity)
+                    Button { $labels.removeDeferred(l.id) } label: {
                         Image(systemName: "minus.circle.fill").foregroundStyle(.secondary)
                     }.buttonStyle(.borderless)
                 }
