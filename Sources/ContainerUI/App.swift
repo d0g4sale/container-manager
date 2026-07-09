@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 @main
 struct ContainerUIApp: App {
@@ -14,6 +15,14 @@ struct ContainerUIApp: App {
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
         .commands {
+            // The standard About panel renders "Version {CFBundleShortVersionString}
+            // ({CFBundleVersion})". Passing an empty `.version` (CFBundleVersion)
+            // suppresses the parenthetical build number, leaving just the version.
+            CommandGroup(replacing: .appInfo) {
+                Button("About Container Manager") {
+                    NSApp.orderFrontStandardAboutPanel(options: [.version: ""])
+                }
+            }
             CommandGroup(replacing: .newItem) {}
             CommandGroup(after: .toolbar) {
                 Button("Refresh") {

@@ -36,6 +36,10 @@ jobs:
       # project.yml (see README). Regenerate it before any xcodebuild step.
       - name: Generate Xcode project
         run: |
+          # The runner image pre-taps aws/tap, which newer Homebrew flags as
+          # untrusted and warns about on every invocation. We don't use it —
+          # untap it (tolerating its absence on future images) to keep logs clean.
+          brew untap aws/tap 2>/dev/null || true
           brew install xcodegen
           xcodegen generate
 

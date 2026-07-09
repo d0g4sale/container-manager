@@ -41,11 +41,15 @@ jobs:
       - name: Show toolchain
         run: xcodebuild -version
 
-      # Versioned filename for the DMG + release asset, e.g.
-      # "Container-Manager-1.2.3" (leading "v" stripped from the tag). Exposed
-      # to later steps via $GITHUB_ENV.
-      - name: Compute DMG filename
-        run: echo "DMG_FILE=${DMG_NAME}-${VERSION#v}" >> "$GITHUB_ENV"
+      # Derive the marketing version from the tag (leading "v" stripped, e.g.
+      # "v1.2.3" -> "1.2.3") and the versioned DMG filename. Both are exposed to
+      # later steps via $GITHUB_ENV. APP_VERSION is baked into the app so the
+      # About panel shows the real release version instead of project.yml's
+      # placeholder.
+      - name: Compute version and DMG filename
+        run: |
+          echo "APP_VERSION=${VERSION#v}" >> "$GITHUB_ENV"
+          echo "DMG_FILE=${DMG_NAME}-${VERSION#v}" >> "$GITHUB_ENV"
         env:
           VERSION: ${{ inputs.version }}
 
@@ -53,6 +57,10 @@ jobs:
       # project.yml (see README). Regenerate it before any xcodebuild step.
       - name: Generate Xcode project
         run: |
+          # The runner image pre-taps aws/tap, which newer Homebrew flags as
+          # untrusted and warns about on every invocation. We don't use it —
+          # untap it (tolerating its absence on future images) to keep logs clean.
+          brew untap aws/tap 2>/dev/null || true
           brew install xcodegen
           xcodegen generate
 
@@ -99,6 +107,8 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=macOS' \
             -archivePath "$RUNNER_TEMP/$APP_NAME.xcarchive" \
+            MARKETING_VERSION="$APP_VERSION" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
             DEVELOPMENT_TEAM="$TEAM_ID" \
