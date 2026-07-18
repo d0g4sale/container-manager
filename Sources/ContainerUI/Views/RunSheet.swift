@@ -3,6 +3,7 @@ import SwiftUI
 private struct PortMapping: Identifiable, Hashable { let id = UUID(); var host = ""; var container = "" }
 private struct EnvVar: Identifiable, Hashable { let id = UUID(); var key = ""; var value = "" }
 private struct Mount: Identifiable, Hashable { let id = UUID(); var host = ""; var container = "" }
+private struct VolumeMount: Identifiable, Hashable { let id = UUID(); var name = ""; var container = ""; var readOnly = false }
 
 struct RunSheet: View {
     @EnvironmentObject var model: AppModel
@@ -14,6 +15,7 @@ struct RunSheet: View {
     @State private var ports: [PortMapping] = []
     @State private var envs: [EnvVar] = []
     @State private var mounts: [Mount] = []
+    @State private var volumeMounts: [VolumeMount] = []
     @State private var commandOverride = ""
     @State private var removeOnExit = false
     @State private var showAdvanced = false
@@ -32,6 +34,7 @@ struct RunSheet: View {
                 generalSection
                 portsSection
                 envSection
+                namedVolumesSection
                 volumesSection
                 advancedSection
             }
@@ -152,11 +155,48 @@ struct RunSheet: View {
                     }.buttonStyle(.borderless)
                 }
             }
-            Button { mounts.append(Mount()) } label: { Label("Add volume", systemImage: "plus") }
+            Button { mounts.append(Mount()) } label: { Label("Add folder mount", systemImage: "plus") }
         } header: {
-            Text("Volumes")
+            Text("Bind Mounts")
         } footer: {
             Text("Share a folder from your Mac with the container.")
+        }
+    }
+
+    private var namedVolumesSection: some View {
+        Section {
+            if model.volumes.isEmpty {
+                Text("No volumes have been created yet.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            ForEach($volumeMounts) { $v in
+                HStack(spacing: 8) {
+                    Picker("Volume", selection: $v.name) {
+                        Text("Select…").tag("")
+                        ForEach(model.volumes) { vol in
+                            Text(vol.name).tag(vol.name)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity)
+                    Image(systemName: "arrow.right").foregroundStyle(.secondary)
+                    TextField("Container path", text: $v.container, prompt: Text("Container path"))
+                        .sheetField()
+                        .frame(maxWidth: .infinity)
+                    Toggle("Read-only", isOn: $v.readOnly)
+                        .labelsHidden()
+                        .help("Mount read-only")
+                    Button { $volumeMounts.removeDeferred(v.id) } label: {
+                        Image(systemName: "minus.circle.fill").foregroundStyle(.secondary)
+                    }.buttonStyle(.borderless)
+                }
+            }
+            Button { volumeMounts.append(VolumeMount()) } label: { Label("Attach volume", systemImage: "plus") }
+                .disabled(model.volumes.isEmpty)
+        } header: {
+            Text("Named Volumes")
+        } footer: {
+            Text("Attach a pre-created volume for persistent storage.")
         }
     }
 
@@ -213,6 +253,11 @@ struct RunSheet: View {
         }
         for m in mounts where !m.host.isEmpty && !m.container.isEmpty {
             args += ["--volume", "\(m.host):\(m.container)"]
+        }
+        for v in volumeMounts where !v.name.isEmpty && !v.container.isEmpty {
+            var spec = "type=volume,source=\(v.name),target=\(v.container)"
+            if v.readOnly { spec += ",readonly" }
+            args += ["--mount", spec]
         }
         let c = cpus.trimmingCharacters(in: .whitespaces)
         if !c.isEmpty { args += ["--cpus", c] }
