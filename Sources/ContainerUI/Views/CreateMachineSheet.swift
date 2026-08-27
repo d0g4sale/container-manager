@@ -208,7 +208,9 @@ struct CreateMachineSheet: View {
         if homeMount != "rw" { args += ["--home-mount", homeMount] }
         if setDefault { args.append("--set-default") }
         if !bootNow { args.append("--no-boot") }
-        args.append(trimmedImage)
+        // `--` stops option parsing so an image reference beginning with `-`
+        // is treated as a positional, not a flag.
+        args += ["--", trimmedImage]
 
         do {
             let (proc, lines) = try model.engine.stream(args)

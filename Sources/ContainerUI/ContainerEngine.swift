@@ -159,7 +159,7 @@ struct ContainerEngine {
         (try? await runJSON(["network", "list", "--format", "json"], as: [CTNetwork].self)) ?? []
     }
 
-    func deleteNetwork(_ name: String) async throws { try await run(["network", "delete", name]) }
+    func deleteNetwork(_ name: String) async throws { try await run(["network", "delete", "--", name]) }
 
     /// Create a new network. `subnet`/`subnetV6` set the IPv4/IPv6 ranges;
     /// `internal` restricts it to host-only; `labels` pass through as `--label`.
@@ -171,7 +171,7 @@ struct ContainerEngine {
         for (k, v) in labels where !k.isEmpty { args += ["--label", "\(k)=\(v)"] }
         if let subnet, !subnet.isEmpty { args += ["--subnet", subnet] }
         if let subnetV6, !subnetV6.isEmpty { args += ["--subnet-v6", subnetV6] }
-        args.append(name)
+        args += ["--", name]
         try await run(args)
     }
 
@@ -184,11 +184,11 @@ struct ContainerEngine {
         try await runJSON(["list", "--all", "--format", "json"], as: [CTContainer].self)
     }
 
-    func startContainer(_ id: String) async throws { try await run(["start", id]) }
-    func stopContainer(_ id: String) async throws { try await run(["stop", id]) }
-    func killContainer(_ id: String) async throws { try await run(["kill", id]) }
+    func startContainer(_ id: String) async throws { try await run(["start", "--", id]) }
+    func stopContainer(_ id: String) async throws { try await run(["stop", "--", id]) }
+    func killContainer(_ id: String) async throws { try await run(["kill", "--", id]) }
     func deleteContainer(_ id: String, force: Bool) async throws {
-        try await run(force ? ["delete", "--force", id] : ["delete", id])
+        try await run(force ? ["delete", "--force", "--", id] : ["delete", "--", id])
     }
     func restartContainer(_ id: String) async throws {
         try? await stopContainer(id)
@@ -199,12 +199,12 @@ struct ContainerEngine {
     /// `--no-stream` returns the first reading and exits rather than streaming.
     func stats(_ id: String) async throws -> CTStats? {
         let readings = try await runJSON(
-            ["stats", "--no-stream", "--format", "json", id], as: [CTStats].self)
+            ["stats", "--no-stream", "--format", "json", "--", id], as: [CTStats].self)
         return readings.first { $0.id == id } ?? readings.first
     }
 
     func inspectContainerRaw(_ id: String) async throws -> String {
-        let data = try await run(["inspect", id])
+        let data = try await run(["inspect", "--", id])
         return prettyJSON(data)
     }
 
@@ -214,7 +214,7 @@ struct ContainerEngine {
         try await runJSON(["image", "list", "--format", "json"], as: [CTImage].self)
     }
 
-    func deleteImage(_ reference: String) async throws { try await run(["image", "delete", reference]) }
+    func deleteImage(_ reference: String) async throws { try await run(["image", "delete", "--", reference]) }
 
     /// Remove unused images. `all` removes every unreferenced image, not just
     /// dangling (untagged) ones.
@@ -223,7 +223,7 @@ struct ContainerEngine {
     }
 
     func inspectImageRaw(_ reference: String) async throws -> String {
-        let data = try await run(["image", "inspect", reference])
+        let data = try await run(["image", "inspect", "--", reference])
         return prettyJSON(data)
     }
 
@@ -236,11 +236,11 @@ struct ContainerEngine {
     /// Full details for one machine. `machine inspect` prints a JSON array
     /// (there's no `--format` flag) with fields the list command omits.
     func inspectMachine(_ id: String) async throws -> CTMachine? {
-        try await runJSON(["machine", "inspect", id], as: [CTMachine].self).first
+        try await runJSON(["machine", "inspect", "--", id], as: [CTMachine].self).first
     }
 
     func inspectMachineRaw(_ id: String) async throws -> String {
-        let data = try await run(["machine", "inspect", id])
+        let data = try await run(["machine", "inspect", "--", id])
         return prettyJSON(data)
     }
 
@@ -254,9 +254,9 @@ struct ContainerEngine {
         try await runWithPTY(["machine", "run", "-n", id, "--", "uname"])
     }
 
-    func stopMachine(_ id: String) async throws { try await run(["machine", "stop", id]) }
-    func deleteMachine(_ id: String) async throws { try await run(["machine", "delete", id]) }
-    func setDefaultMachine(_ id: String) async throws { try await run(["machine", "set-default", id]) }
+    func stopMachine(_ id: String) async throws { try await run(["machine", "stop", "--", id]) }
+    func deleteMachine(_ id: String) async throws { try await run(["machine", "delete", "--", id]) }
+    func setDefaultMachine(_ id: String) async throws { try await run(["machine", "set-default", "--", id]) }
 
     /// Apply `key=value` settings (cpus, memory, home-mount). The CLI stores
     /// them immediately; they take effect the next time the machine boots.
@@ -271,7 +271,7 @@ struct ContainerEngine {
         (try? await runJSON(["volume", "list", "--format", "json"], as: [CTVolume].self)) ?? []
     }
 
-    func deleteVolume(_ name: String) async throws { try await run(["volume", "delete", name]) }
+    func deleteVolume(_ name: String) async throws { try await run(["volume", "delete", "--", name]) }
 
     /// Create a new volume. `size` accepts an optional K/M/G/T/P suffix;
     /// `labels` and `opts` are passed through as `--label`/`--opt` pairs.
@@ -282,7 +282,7 @@ struct ContainerEngine {
         for (k, v) in labels where !k.isEmpty { args += ["--label", "\(k)=\(v)"] }
         for (k, v) in opts where !k.isEmpty { args += ["--opt", "\(k)=\(v)"] }
         if let size, !size.isEmpty { args += ["-s", size] }
-        args.append(name)
+        args += ["--", name]
         try await run(args)
     }
 

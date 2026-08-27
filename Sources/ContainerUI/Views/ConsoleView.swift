@@ -34,7 +34,7 @@ struct ConsoleView: View {
             if let binary = ContainerEngine.binaryPath {
                 TerminalSurface(
                     executable: binary,
-                    args: ["exec", "-i", "-t", containerID, "sh"],
+                    args: ["exec", "-i", "-t", "--", containerID, "sh"],
                     onExit: { exitCode = $0 }
                 )
                 .id(session)

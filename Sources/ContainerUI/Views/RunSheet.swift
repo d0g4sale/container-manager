@@ -266,6 +266,10 @@ struct RunSheet: View {
         let net = network.trimmingCharacters(in: .whitespaces)
         if !net.isEmpty { args += ["--network", net] }
 
+        // `--` ends option parsing: everything after it (the image reference
+        // and any command override) is positional, so a value starting with
+        // `-` can't be mistaken for a flag.
+        args.append("--")
         args.append(model.imageRef(image))
 
         let cmd = commandOverride.trimmingCharacters(in: .whitespaces)

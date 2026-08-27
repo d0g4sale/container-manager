@@ -115,7 +115,7 @@ struct PullSheet: View {
         guard !ref.isEmpty, !running else { return }
         running = true; finished = false; failed = false; log = ""
         do {
-            let (proc, lines) = try model.engine.stream(["image", "pull", ref])
+            let (proc, lines) = try model.engine.stream(["image", "pull", "--", ref])
             process = proc
             Task {
                 for await line in lines { log += line }

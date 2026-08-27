@@ -125,7 +125,7 @@ struct BuildView: View {
         if noCache { args.append("--no-cache") }
         let df = dockerfile.trimmingCharacters(in: .whitespaces)
         if !df.isEmpty { args += ["--file", df] }
-        args += ["--progress", "plain", contextPath]
+        args += ["--progress", "plain", "--", contextPath]
 
         do {
             let (proc, lines) = try model.engine.stream(args)

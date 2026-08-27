@@ -49,7 +49,7 @@ struct LogsView: View {
     private var logArgs: [String] {
         var args = ["logs", "-n", "1000"]
         if boot { args.append("--boot") }
-        args.append(containerID)
+        args += ["--", containerID]
         return args
     }
 }
