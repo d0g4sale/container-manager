@@ -1,0 +1,12 @@
+name: CI
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch: {}
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    uses: d0g4sale/macos-release-workflows/.github/workflows/ci.yml@v1
